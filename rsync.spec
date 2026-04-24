@@ -1,34 +1,30 @@
-%if 0%{?fedora} >= 19 || 0%{?rhel} >= 7
-%bcond_without systemd
-%else
-%bcond_with systemd
-%endif
-
 %global _hardened_build 1
 
 Summary: A program for synchronizing files over a network
 Name: rsync
-Version: 3.1.3
+Version: 3.4.1
 Release: 1%{?dist}
 License: GPLv3+
-URL: http://rsync.samba.org
-Source0: https://download.samba.org/pub/rsync/src/rsync-%{version}.tar.gz
-Source1: https://download.samba.org/pub/rsync/src/rsync-patches-%{version}.tar.gz
+URL: https://rsync.samba.org
+Source0: https://download.samba.org/pub/rsync/src/%{name}-%{version}.tar.gz
 Source2: rsyncd.conf
 Source3: rsyncd.sysconfig
 Source4: rsyncd.socket
 Source5: rsyncd.service
 Source6: rsyncd@.service
-Source7: rsync.xinetd
-Patch0: rsync-man.patch
 
 BuildRequires: libacl-devel
 BuildRequires: libattr-devel
 BuildRequires: autoconf
 BuildRequires: popt-devel
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+BuildRequires: systemd-rpm-macros
+%else
+BuildRequires: systemd
+%endif
 
-Provides: rsync = %{version}-%{release}
 Provides: rsync%{?_isa} = %{version}-%{release}
+Obsoletes: rsync < %{version}-%{release}
 Conflicts: rsync < %{version}
 
 %{?filter_requires_in:%filter_requires_in %{_docdir}}
@@ -49,14 +45,15 @@ package.
 Summary: Service for anonymous access to rsync
 #BuildArch: noarch
 Requires: %{name} = %{version}-%{release}
-%if %{with systemd}
-BuildRequires: systemd
-%{?systemd_requires}
+%if 0%{?rhel} >= 8 || 0%{?fedora}
+BuildRequires: systemd-rpm-macros
 %else
-Requires: xinetd
+BuildRequires: systemd
 %endif
+%{?systemd_requires}
 Provides: rsync-daemon = %{version}-%{release}
 Conflicts: rsync-daemon < %{version}
+Obsoletes: rsync-daemon < %{version}-%{release}
 
 
 %description daemon
@@ -66,55 +63,34 @@ package provides the anonymous rsync service.
 
 %prep
 %setup -q -n rsync-%{version}
-%setup -q -n rsync-%{version} -b 1
-
-#Needed for compatibility with previous patched rsync versions
-patch -p1 -i patches/acls.diff
-patch -p1 -i patches/xattrs.diff
-
-#Enable --copy-devices parameter
-patch -p1 -i patches/copy-devices.diff
-
-%patch0 -p1 -b .man
 
 
 %build
 %configure
-# --with-included-zlib=no temporary disabled because of #1043965
 %make_build
 
 
 %install
 %make_install
 install -D -m644 %{SOURCE2} %{buildroot}%{_sysconfdir}/rsyncd.conf
-%if %{with systemd}
 install -D -m644 %{SOURCE3} %{buildroot}%{_sysconfdir}/sysconfig/rsyncd
 install -D -m644 %{SOURCE4} %{buildroot}%{_unitdir}/rsyncd.socket
 install -D -m644 %{SOURCE5} %{buildroot}%{_unitdir}/rsyncd.service
 install -D -m644 %{SOURCE6} %{buildroot}%{_unitdir}/rsyncd@.service
-%else
-install -D -m644 %{SOURCE7} %{buildroot}%{_sysconfdir}/xinetd.d/rsync
-%endif
 
 
 %check
 make test
 
 
-%if %{with systemd}
 %post daemon
 %systemd_post rsyncd.service
-systemctl daemon-reload
-systemctl enable rsyncd
-systemctl restart rsyncd
 
 %preun daemon
 %systemd_preun rsyncd.service
 
-
 %postun daemon
 %systemd_postun_with_restart rsyncd.service
-%endif
 
 
 %files
@@ -127,17 +103,17 @@ systemctl restart rsyncd
 %files daemon
 %{_mandir}/man5/rsyncd.conf.5*
 %config(noreplace) %{_sysconfdir}/rsyncd.conf
-%if %{with systemd}
 %config(noreplace) %{_sysconfdir}/sysconfig/rsyncd
 %{_unitdir}/rsyncd.socket
 %{_unitdir}/rsyncd.service
 %{_unitdir}/rsyncd@.service
-%else
-%config(noreplace) %{_sysconfdir}/xinetd.d/rsync
-%endif
 
 
 %changelog
+* Fri Apr 24 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 3.4.1-1
+- Update to 3.4.1
+- Modernize spec for EL10
+
 * Mon Jan 29 2018 Carl George <carl@george.computer> - 3.1.3-1.ius
 - Latest version
 - Move scriptlets to daemon package (Fedora rhbz#1459681)
@@ -581,7 +557,7 @@ systemctl restart rsyncd
 * Wed Apr 07 1999 Bill Nottingham <notting@redhat.com>
 - update to 2.3.1.
 
-* Sun Mar 21 1999 Cristian Gafton <gafton@redhat.com> 
+* Sun Mar 21 1999 Cristian Gafton <gafton@redhat.com>
 - auto rebuild in the new build environment (release 2)
 
 * Tue Mar 16 1999 Jeff Johnson <jbj@redhat.com>
@@ -606,7 +582,7 @@ systemctl restart rsyncd
 * Mon Aug 25 1997 John A. Martin <jam@jamux.com>
 - Built 1.6.3-2 after finding no rsync-1.6.3-1.src.rpm although there
   was an ftp://ftp.redhat.com/pub/contrib/alpha/rsync-1.6.3-1.alpha.rpm
-  showing no packager nor signature but giving 
+  showing no packager nor signature but giving
   "Source RPM: rsync-1.6.3-1.src.rpm".
 - Changes from 1.6.2-1 packaging: added '$RPM_OPT_FLAGS' to make, strip
   to '%%build', removed '%%prefix'.

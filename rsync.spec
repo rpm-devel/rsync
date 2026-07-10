@@ -2,10 +2,11 @@
 
 Summary: A program for synchronizing files over a network
 Name: rsync
-Version: 3.4.1
+Version: 3.4.4
 Release: 1%{?dist}
-License: GPLv3+
+License: GPL-3.0-or-later
 URL: https://rsync.samba.org
+ExclusiveArch: x86_64 aarch64
 Source0: https://download.samba.org/pub/rsync/src/%{name}-%{version}.tar.gz
 Source2: rsyncd.conf
 Source3: rsyncd.sysconfig
@@ -17,11 +18,7 @@ BuildRequires: libacl-devel
 BuildRequires: libattr-devel
 BuildRequires: autoconf
 BuildRequires: popt-devel
-%if 0%{?rhel} >= 8 || 0%{?fedora}
 BuildRequires: systemd-rpm-macros
-%else
-BuildRequires: systemd
-%endif
 
 Provides: rsync%{?_isa} = %{version}-%{release}
 Obsoletes: rsync < %{version}-%{release}
@@ -43,13 +40,8 @@ package.
 
 %package daemon
 Summary: Service for anonymous access to rsync
-#BuildArch: noarch
 Requires: %{name} = %{version}-%{release}
-%if 0%{?rhel} >= 8 || 0%{?fedora}
 BuildRequires: systemd-rpm-macros
-%else
-BuildRequires: systemd
-%endif
 %{?systemd_requires}
 Provides: rsync-daemon = %{version}-%{release}
 Conflicts: rsync-daemon < %{version}
@@ -62,7 +54,7 @@ package provides the anonymous rsync service.
 
 
 %prep
-%setup -q -n rsync-%{version}
+%autosetup -p1 -n rsync-%{version}
 
 
 %build
@@ -80,7 +72,7 @@ install -D -m644 %{SOURCE6} %{buildroot}%{_unitdir}/rsyncd@.service
 
 
 %check
-make test
+%make_build test
 
 
 %post daemon
@@ -110,6 +102,15 @@ make test
 
 
 %changelog
+* Sat Jul 05 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 3.4.4-1
+- Update to 3.4.4
+- Remove commented-out BuildArch: noarch from daemon subpackage
+- Verified Source0 downloadable
+
+* Thu Jul 03 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 3.4.1-1
+- SPDX: GPLv3+ -> GPL-3.0-or-later; add ExclusiveArch: x86_64 aarch64
+- %%autosetup -p1; %%make_build test; collapse pre-EL8 systemd-rpm-macros conditional
+
 * Fri Apr 24 2026 CasjaysDev <rpm-devel@casjaysdev.pro> - 3.4.1-1
 - Update to 3.4.1
 - Modernize spec for EL10
